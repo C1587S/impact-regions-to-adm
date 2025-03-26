@@ -6,38 +6,38 @@ import pandas as pd
 import os
 
 # Parameters
-year=2015
+year = 2015
 shapefile_path = "./data/gadm36_shp/gadm36.shp"
-raster_path = f"./data/landscan/landscan-global-{str(year)}-assets/landscan-global-2015.tif"
-output_csv = f"./outputs/population_by_adm2_{str(year)}.csv"
+raster_path = f"./data/landscan/landscan-global-{year}-assets/landscan-global-{year}.tif"
+output_csv = f"./outputs/population_by_adm2_{year}.csv"
 
-# Read shapefile
+# Read GADM shapefile
 gdf = gpd.read_file(shapefile_path)
 
-# Optional test mode: filter for a few countries
+# Optional test mode: process only a subset of countries
 test_mode = True
 if test_mode:
-    print(f"Using test mode. Only generating data for {target_countries}")
     target_countries = ["USA", "IND", "MEX", "CHN", "COL"]
+    print(f"Using test mode. Only processing: {', '.join(target_countries)}")
     gdf = gdf[gdf["GID_0"].isin(target_countries)]
 
-# Run zonal stats
-print("Calculating population by ADM2")
-stats = zonal_stats(gdf, raster_path, stats="sum", geojson_out=True)
+# Run zonal statistics to extract population sum per geometry
+print("Calculating population per geometry...")
+stats = zonal_stats(gdf, raster_path, stats="sum")
 
-# Combine results
-stats_gdf = gpd.GeoDataFrame.from_features(stats)
-stats_gdf["population"] = stats_gdf["sum"]
-stats_gdf["year"] = year
+# Attach population to attribute data
+df_ids = gdf[["GID_0", "ID_1", "NAME_1", "ID_2", "NAME_2"]].copy()
+df_ids["population"] = [s["sum"] for s in stats]
 
-# Add IDs from shapefile
-stats_gdf["ID_1"] = gdf["ID_1"].values
-stats_gdf["ID_2"] = gdf["ID_2"].values
-stats_gdf["ISO"] = gdf["GID_0"].values
-stats_gdf["ADM1_NAME"] = gdf["NAME_1"].values
-stats_gdf["ADM2_NAME"] = gdf["NAME_2"].values
+# Group by ADM2 units and sum population across geometries
+print("Aggregating population by ADM2...")
+pop_by_adm2 = df_ids.groupby(["GID_0", "ID_1", "NAME_1", "ID_2", "NAME_2"]).agg(
+    population=("population", "sum")
+).reset_index()
 
-# Final result
-result = stats_gdf[["ISO", "ID_1", "ADM1_NAME", "ID_2", "ADM2_NAME", "population", "year"]]
-result.to_csv(output_csv, index=False)
+# Add year column
+pop_by_adm2["year"] = year
+
+# Save result
+pop_by_adm2.to_csv(output_csv, index=False)
 print(f"Output saved: {output_csv}")
