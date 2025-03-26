@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-df = pd.read_csv("../outputs/ir_to_adm2_adm1.csv")
+df = pd.read_csv("./outputs/ir_to_adm2_adm1.csv")
 
 # Total counts
 total_irs = df["agglomid"].nunique()
@@ -31,5 +31,5 @@ summary_df = pd.DataFrame({
         ir_multi_adm2
     ]
 })
-summary_df.to_csv("../outputs/ir_adm_stats.csv", index=False)
+summary_df.to_csv("./outputs/ir_adm_stats.csv", index=False)
 print("Summary saved: ir_adm_stats.csv")

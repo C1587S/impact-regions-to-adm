@@ -3,8 +3,8 @@
 import pandas as pd
 
 # Load hierarchy file (skip metadata header)
-hierarchy_df = pd.read_csv("../data/hierarchy.csv", skiprows=31)
-gadm_df = pd.read_csv("../data/gadm2.csv")  # Contains OBJECTID, ID_1, ID_2, NAME_1, NAME_2, ISO
+hierarchy_df = pd.read_csv("./data/hierarchy.csv", skiprows=31)
+gadm_df = pd.read_csv("./data/gadm2.csv")  # Contains OBJECTID, ID_1, ID_2, NAME_1, NAME_2, ISO
 
 # Filter terminal IRs that contain GADM regions
 irs = hierarchy_df[
@@ -30,5 +30,5 @@ final = merged[[
 ]]
 
 # Save result
-final.to_csv("../outputs/ir_to_adm2_adm1.csv", index=False)
+final.to_csv("./outputs/ir_to_adm2_adm1.csv", index=False)
 print("Output saved: ir_to_adm2_adm1.csv")
