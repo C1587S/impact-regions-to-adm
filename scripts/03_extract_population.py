@@ -6,9 +6,10 @@ import pandas as pd
 import os
 
 # Parameters
-shapefile_path = "../data/gadm36_shp/gadm36.shp"
-raster_path = "../data/landscan-global-2015-assets/landscan-global-2015.tif"
-output_csv = "../outputs/population_by_adm2_2015.csv"
+year=2015
+shapefile_path = "./data/gadm36_shp/gadm36.shp"
+raster_path = f"./data/landscan/landscan-global-{str(year)}-assets/landscan-global-2015.tif"
+output_csv = f"./outputs/population_by_adm2_{str(year)}.csv"
 
 # Read shapefile
 gdf = gpd.read_file(shapefile_path)
@@ -16,17 +17,18 @@ gdf = gpd.read_file(shapefile_path)
 # Optional test mode: filter for a few countries
 test_mode = True
 if test_mode:
+    print(f"Using test mode. Only generating data for {target_countries}")
     target_countries = ["USA", "IND", "MEX", "CHN", "COL"]
     gdf = gdf[gdf["GID_0"].isin(target_countries)]
 
 # Run zonal stats
-print("Calculating population by ADM2...")
+print("Calculating population by ADM2")
 stats = zonal_stats(gdf, raster_path, stats="sum", geojson_out=True)
 
 # Combine results
 stats_gdf = gpd.GeoDataFrame.from_features(stats)
 stats_gdf["population"] = stats_gdf["sum"]
-stats_gdf["year"] = 2015
+stats_gdf["year"] = year
 
 # Add IDs from shapefile
 stats_gdf["ID_1"] = gdf["ID_1"].values
