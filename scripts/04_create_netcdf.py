@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from netCDF4 import Dataset, stringtochar, chartostring
+from netCDF4 import Dataset
 import glob
 import re
 import os
@@ -32,7 +32,6 @@ for file in population_files:
     except Exception as e:
         print(f"Error loading {file}: {e}")
 
-# Final safety check
 if not pop_list:
     raise ValueError("No valid population files found to process.")
 
@@ -113,24 +112,34 @@ adm2_to_adm1_var[:] = adm2_to_adm1
 ir_to_adm2_var = ncfile.createVariable("ir_to_adm2", np.uint8, ("agglomid", "adm2"))
 ir_to_adm2_var[:, :] = ir_to_adm2_matrix
 
-# Metadata variables as UTF-8 strings
+# Metadata variables
 iso_var = ncfile.createVariable("iso", str, ("adm2",))
 adm2_id1_var = ncfile.createVariable("adm2_id1", np.int32, ("adm2",))
 adm2_id2_var = ncfile.createVariable("adm2_id2", np.int32, ("adm2",))
 adm2_name_var = ncfile.createVariable("adm2_name", str, ("adm2",))
 adm1_name_var = ncfile.createVariable("adm1_name", str, ("adm1",))
+agglomid_var = ncfile.createVariable("agglomid_id", np.float32, ("agglomid",))
+region_key_var = ncfile.createVariable("region_key", str, ("agglomid",))
 
+# Fill metadata variables
 iso_var[:] = adm2_keys["ISO"].fillna("").astype(str).values
 adm2_id1_var[:] = adm2_keys["ID_1"].values
 adm2_id2_var[:] = adm2_keys["ID_2"].values
 adm2_name_var[:] = adm2_keys["ADM2_NAME"].fillna("").astype(str).values
 adm1_name_var[:] = adm1_keys["ADM1_NAME"].fillna("").astype(str).values
+agglomid_var[:] = ir_keys["agglomid"].values
+
+# Align region-key correctly using merge
+region_key_map = ir_keys.merge(
+    mapping_df[["agglomid", "region-key"]].drop_duplicates("agglomid"),
+    on="agglomid", how="left"
+)
+region_key_var[:] = region_key_map["region-key"].fillna("").astype(str).values
 
 # Description
 ncfile.description = (
     "This dataset provides total population by ADM2 region across years, a binary mapping from IRs to ADM2s, "
-    "and ADM2 metadata (ISO code, IDs, and names). It includes an index to convert ADM2 to ADM1 and supports "
-    "aggregation and disaggregation operations. Compatible with NetCDF4 readers in Python, R, and GIS tools."
+    "IR identifiers, and metadata for ADM2/ADM1. Useful for aggregation, disaggregation, and impact estimation."
 )
 
 ncfile.close()
