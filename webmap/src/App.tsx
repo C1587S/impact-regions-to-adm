@@ -1,59 +1,62 @@
 // src/App.jsx
-import React, { useEffect, useRef } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import React, { useState } from 'react';
+import Navigation from './components/Navigation';
+import CountrySelector from './components/CountrySelector';
+import MapComponent from './components/MapComponent';
 import './App.css';
 
-// Set your Mapbox access token here
-mapboxgl.accessToken = 'pk.eyJ1IjoiYzE1ODdzIiwiYSI6ImNtNjczeGFhdjA2engybXBxa2F2MWRheWsifQ.tkA3s8bLDXISVWaR9jBACg';
-
 function App() {
-  const mapContainerRef = useRef(null);
+  const [pendingCountry, setPendingCountry] = useState('');
+  const [confirmedCountry, setConfirmedCountry] = useState('');
+  const [layerVisible, setLayerVisible] = useState(true);
+  const [isCountryLoading, setIsCountryLoading] = useState(false);
+  const [activeCaseTypes, setActiveCaseTypes] = useState({
+    'Case 1: IR = ADM2': true,
+    'Case 2: IR covers multiple ADM2s': true,
+    'Case 3: ADM2 = multiple IRs': true,
+  });
 
-  useEffect(() => {
-    // Initialize the Mapbox map
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/light-v10', // or any preferred Mapbox style
-      center: [-98, 38.88], // Center on the USA (adjust as needed)
-      zoom: 3,
-      projection: 'globe' // Enable globe projection
-    });
+  const handleCountrySubmit = () => {
+    // When the submit button is clicked, show the loader.
+    setIsCountryLoading(true);
+    setConfirmedCountry(pendingCountry);
+  };
 
-    // When the map loads, fetch and add the GeoJSON data
-    map.on('load', () => {
-      fetch('/outputs/geometries/countries/USA_adm2.geojson')
-        .then((response) => response.json())
-        .then((data) => {
-          // Add the GeoJSON data as a new source
-          map.addSource('usa-borders', {
-            type: 'geojson',
-            data: data
-          });
+  const toggleLayerVisibility = () => {
+    setLayerVisible(prev => !prev);
+  };
 
-          // Add a layer to display the outlines
-          map.addLayer({
-            id: 'usa-borders-layer',
-            type: 'line',
-            source: 'usa-borders',
-            paint: {
-              'line-color': '#FF0000', // Red outlines
-              'line-width': 2          // Outline thickness
-            }
-          });
-        })
-        .catch((err) => console.error('Error loading GeoJSON:', err));
-    });
-
-    // Cleanup on unmount
-    return () => map.remove();
-  }, []);
+  const toggleCaseType = (caseType) => {
+    setActiveCaseTypes(prev => ({
+      ...prev,
+      [caseType]: !prev[caseType],
+    }));
+  };
 
   return (
-    <div
-      ref={mapContainerRef}
-      style={{ width: '100vw', height: '100vh' }}
-    />
+    <div className="app-container">
+      <Navigation currentTab="Map" />
+      <div className="main-content">
+        <div className="controls">
+          <CountrySelector 
+            pendingCountry={pendingCountry}
+            setPendingCountry={setPendingCountry}
+            onSubmit={handleCountrySubmit}
+            isLoading={isCountryLoading}
+          />
+        </div>
+        <div className="map-container">
+          <MapComponent 
+            countryCode={confirmedCountry} 
+            layerVisible={layerVisible} 
+            toggleLayer={toggleLayerVisibility}
+            activeCaseTypes={activeCaseTypes}
+            toggleCaseType={toggleCaseType}
+            onDataLoaded={() => setIsCountryLoading(false)}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 

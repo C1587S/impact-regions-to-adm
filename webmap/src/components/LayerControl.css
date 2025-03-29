@@ -1,0 +1,13 @@
+/* src/components/LayerControl.css */
+.layer-control {
+    position: absolute;
+    top: 60px;
+    right: 10px;
+    background: rgba(50, 50, 50, 0.9);
+    padding: 10px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    font-size: 14px;
+    color: #fff;
+  }
+  
