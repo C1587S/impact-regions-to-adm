@@ -1,5 +1,47 @@
 /* src/components/CountrySelector.css */
-.button-spinner {
+.country-selector-container {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .country-selector-input {
+    flex: 1;
+    padding: 5px;
+    font-size: 14px;
+  }
+  
+  .country-selector-dropdown {
+    position: absolute;
+    top: 35px;
+    left: 0;
+    right: 0;
+    background: #424242;
+    border: 1px solid #ccc;
+    z-index: 10;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .country-selector-option {
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  
+  .country-selector-option:hover {
+    background: #161c61;
+  }
+  
+  .submit-button {
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    position: relative;
+  }
+  
+  .button-spinner {
     border: 2px solid transparent;
     border-top: 2px solid #fff;
     border-right: 2px solid #fff;
