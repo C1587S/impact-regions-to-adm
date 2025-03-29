@@ -220,4 +220,4 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
-# End of https://www.toptal.com/developers/gitignore/api/jupyternotebooks,python,nextjs
+# End of https://www.toptal.com/developers/gitignore/api/jupyternotebooks,python,nextjswebmap/public/outputs/geometries/countries/*.geojson
