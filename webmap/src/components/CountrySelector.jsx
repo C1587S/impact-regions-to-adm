@@ -1,14 +1,7 @@
 // src/components/CountrySelector.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import './CountrySelector.css';
-
-const countries = [
-  { code: 'USA', name: 'United States', flag: '🇺🇸' },
-  { code: 'CHN', name: 'China', flag: '🇨🇳' },
-  { code: 'COL', name: 'Colombia', flag: '🇨🇴' },
-  { code: 'IND', name: 'India', flag: '🇮🇳' },
-  { code: 'MEX', name: 'Mexico', flag: '🇲🇽' },
-];
+import countries from './countries'; 
 
 const CountrySelector = ({ pendingCountry, setPendingCountry, onSubmit, isLoading }) => {
   const [searchTerm, setSearchTerm] = useState('');

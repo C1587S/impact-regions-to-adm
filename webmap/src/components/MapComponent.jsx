@@ -17,11 +17,13 @@ const MapComponent = ({
   impactLayerVisible,
   toggleImpactLayer,
   onDataLoaded,
+  onGeojsonError,
 }) => {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [caseCounts, setCaseCounts] = useState({});
+  const [adm2Center, setAdm2Center] = useState(null);
 
   // Helper: returns the corresponding color for an ADM2 case type.
   const getCaseColor = (caseType) => {
@@ -90,16 +92,19 @@ const MapComponent = ({
 
     const loadADM2GeoJSON = async () => {
       try {
-        // const url = `/outputs/geometries/countries/${countryCode}_adm2.geojson`;
+        // Use Hugging Face URL for ADM2 data.
         const url = `https://huggingface.co/datasets/c1587s/adm2-geojson-dataset/resolve/main/${countryCode}_adm2.geojson`;
         console.log('Fetching ADM2 GeoJSON from:', url);
         const response = await fetch(url);
         if (!response.ok) {
           console.error('Error fetching ADM2 GeoJSON:', response.status);
+          if (onGeojsonError)
+            onGeojsonError('GeoJSON not found for the selected country.');
           return;
         }
         const data = await response.json();
         console.log('ADM2 GeoJSON loaded:', data);
+        if (onGeojsonError) onGeojsonError('');
 
         // Compute counts for each ADM2 case type.
         const counts = data.features.reduce((acc, feature) => {
@@ -108,6 +113,11 @@ const MapComponent = ({
           return acc;
         }, {});
         setCaseCounts(counts);
+
+        // Compute centroid using Turf.js and save it.
+        const centerFeature = centroid(data);
+        const computedCenter = centerFeature.geometry.coordinates;
+        setAdm2Center(computedCenter);
 
         // Update or add the ADM2 source and layers.
         if (map.getSource('adm2-regions')) {
@@ -137,38 +147,26 @@ const MapComponent = ({
         }
 
         // Build filter for ADM2 features.
-        const activeTypes = Object.keys(activeCaseTypes).filter(
-          (key) => activeCaseTypes[key]
-        );
+        const activeTypes = Object.keys(activeCaseTypes).filter((key) => activeCaseTypes[key]);
         const filterExpression = activeTypes.length
           ? ['in', ['get', 'case_type'], ['literal', activeTypes]]
           : ['==', ['get', 'case_type'], ''];
         map.setFilter('adm2-fill', filterExpression);
 
-        // Compute centroid using Turf.js.
-        const centerFeature = centroid(data);
-        const center = centerFeature.geometry.coordinates;
+        // Fly-to effect.
         const targetZoom = (['USA', 'CHN', 'IND'].includes(countryCode)) ? 4 : 5;
-
-        // Fly-to function.
-        const fly = () => {
-          console.log('Flying to ADM2 centroid:', center, 'with zoom:', targetZoom);
+        console.log('Computed ADM2 center:', computedCenter, 'Target zoom:', targetZoom);
+        // Use the "idle" event to trigger fly-to after rendering.
+        map.once('idle', () => {
+          console.log('Flying to ADM2 center...');
           map.flyTo({
-            center,
+            center: computedCenter,
             zoom: targetZoom,
             speed: 1.2,
             curve: 1.42,
             easing: (t) => t,
           });
           if (onDataLoaded) onDataLoaded();
-        };
-
-        // Trigger fly-to when ADM2 source is fully loaded.
-        map.on('data', function flyToHandler(e) {
-          if (e.sourceId === 'adm2-regions' && e.isSourceLoaded) {
-            fly();
-            map.off('data', flyToHandler);
-          }
         });
 
         // Attach click handler for ADM2 features.
@@ -192,6 +190,8 @@ const MapComponent = ({
         }
       } catch (error) {
         console.error('Error loading ADM2 GeoJSON:', error);
+        if (onGeojsonError)
+          onGeojsonError('GeoJSON not found for the selected country.');
       }
     };
 
@@ -201,7 +201,7 @@ const MapComponent = ({
         map.off('click', 'adm2-fill');
       }
     };
-  }, [countryCode, layerVisible, activeCaseTypes, onDataLoaded]);
+  }, [countryCode, layerVisible, activeCaseTypes, onDataLoaded, onGeojsonError]);
 
   // Load Impact Regions (IR) GeoJSON and set up IR layers.
   useEffect(() => {
@@ -242,7 +242,7 @@ const MapComponent = ({
             source: 'impact-regions',
             layout: { visibility: 'visible' },
             paint: {
-              'fill-color': '#9C27B0', // Contrasting purple
+              'fill-color': '#9C27B0',
               'fill-opacity': 0.5,
             },
           });
@@ -257,7 +257,6 @@ const MapComponent = ({
             },
           });
           // Add a hover layer for IR highlighting.
-          // Use 'hierid' as the unique identifier.
           map.addLayer({
             id: 'impact-hover',
             type: 'fill',
@@ -267,7 +266,6 @@ const MapComponent = ({
               'fill-color': 'cyan',
               'fill-opacity': 0.7,
             },
-            // Default filter: show nothing.
             filter: ['==', ['get', 'hierid'], null],
           });
         }
@@ -329,12 +327,9 @@ const MapComponent = ({
       if (e.features && e.features.length > 0) {
         const feature = e.features[0];
         console.log("Hovered Impact Region properties:", feature.properties);
-        // Use 'hierid' as unique identifier.
         const impactId = feature.properties.hierid !== undefined ? feature.properties.hierid : null;
-        // Update the hover layer filter.
         map.setFilter('impact-hover', ['==', ['get', 'hierid'], impactId]);
-        // Build tooltip HTML using available properties.
-        const tooltipHTML = `<div style="background: rgba(0,0,0,0.8); padding: 5px; border-radius: 3px; color: #fff; font-size:12px;">
+        const tooltipHTML = `<div style="background: rgba(0,0,0,0.5); padding: 5px; border-radius: 3px; border: none; color: #fff; font-size:12px;">
              <strong>Impact Region</strong><br/>
              HierID: ${feature.properties.hierid || 'N/A'}<br/>
              GADM ID: ${feature.properties.gadmid || 'N/A'}<br/>
@@ -359,9 +354,43 @@ const MapComponent = ({
     };
   }, [impactLayerVisible]);
 
+  // Reset View button: triggered only when clicked.
+  const resetView = () => {
+    if (!mapRef.current || !adm2Center) return;
+    const targetZoom = (['USA', 'CHN', 'IND'].includes(countryCode)) ? 4 : 5;
+    mapRef.current.flyTo({
+      center: adm2Center,
+      zoom: targetZoom,
+      speed: 1.2,
+      curve: 1.42,
+      easing: (t) => t,
+    });
+  };
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+      {/* Reset View Button */}
+      {adm2Center && (
+        <button 
+          onClick={resetView} 
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            padding: '8px 12px',
+            background: 'rgba(0,0,0,0.6)',
+            border: 'none',
+            borderRadius: '4px',
+            color: '#fff',
+            cursor: 'pointer',
+            zIndex: 2,
+          }}
+        >
+          Reset View
+        </button>
+      )}
+      {/* ADM2 Feature Details Panel */}
       {selectedFeature && (
         <div className="feature-info">
           <button className="close-btn" onClick={() => setSelectedFeature(null)}>X</button>

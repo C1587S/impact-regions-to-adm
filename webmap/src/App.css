@@ -27,6 +27,13 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 20px;
+  flex-wrap: wrap;
+}
+
+.geojson-error {
+  color: #FFA500; /* subtle orange */
+  font-size: 13px;
+  font-style: italic;
 }
 
 .map-container {
@@ -67,4 +74,3 @@ html, body, #root {
   font-size: 16px;
   color: #fff;
 }
-
