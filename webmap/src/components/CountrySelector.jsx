@@ -1,7 +1,7 @@
 // src/components/CountrySelector.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import './CountrySelector.css';
-import countries from './countries'; 
+import countries from './Countries'; 
 
 const CountrySelector = ({ pendingCountry, setPendingCountry, onSubmit, isLoading }) => {
   const [searchTerm, setSearchTerm] = useState('');
