@@ -1,4 +1,16 @@
-/* src/App.css */
+/* Override Mapbox popup default styles */
+.mapboxgl-popup-content {
+  background: rgba(0, 0, 0, 0.5) !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.mapboxgl-popup-tip {
+  display: none !important;
+}
+
+/* General styles */
 html, body, #root {
   height: 100%;
   width: 100%;
@@ -51,7 +63,7 @@ html, body, #root {
   border-radius: 6px;
   width: 300px;
   max-height: 150px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
   font-size: 14px;
   color: #fff;
 }

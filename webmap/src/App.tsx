@@ -1,22 +1,22 @@
-// src/App.jsx
+// src/App.tsx
 import React, { useState } from 'react';
 import Navigation from './components/Navigation';
 import CountrySelector from './components/CountrySelector';
 import MapComponent from './components/MapComponent';
 import './App.css';
 
-function App() {
-  const [pendingCountry, setPendingCountry] = useState('');
-  const [confirmedCountry, setConfirmedCountry] = useState('');
-  const [isCountryLoading, setIsCountryLoading] = useState(false);
-  const [adm2LayerVisible, setAdm2LayerVisible] = useState(true);
-  const [impactLayerVisible, setImpactLayerVisible] = useState(true);
-  const [activeCaseTypes, setActiveCaseTypes] = useState({
+const App: React.FC = () => {
+  const [pendingCountry, setPendingCountry] = useState<string>('');
+  const [confirmedCountry, setConfirmedCountry] = useState<string>('');
+  const [isCountryLoading, setIsCountryLoading] = useState<boolean>(false);
+  const [adm2LayerVisible, setAdm2LayerVisible] = useState<boolean>(true);
+  const [impactLayerVisible, setImpactLayerVisible] = useState<boolean>(true);
+  const [activeCaseTypes, setActiveCaseTypes] = useState<{ [key: string]: boolean }>({
     'Case 1: IR = ADM2': true,
     'Case 2: IR covers multiple ADM2s': true,
     'Case 3: ADM2 = multiple IRs': true,
   });
-  const [geojsonError, setGeojsonError] = useState('');
+  const [geojsonError, setGeojsonError] = useState<string>('');
 
   const handleCountrySubmit = () => {
     setIsCountryLoading(true);
@@ -32,7 +32,7 @@ function App() {
     setImpactLayerVisible((prev) => !prev);
   };
 
-  const toggleCaseType = (caseType) => {
+  const toggleCaseType = (caseType: string) => {
     setActiveCaseTypes((prev) => ({
       ...prev,
       [caseType]: !prev[caseType],
@@ -66,7 +66,7 @@ function App() {
             impactLayerVisible={impactLayerVisible}
             toggleImpactLayer={toggleImpactLayer}
             onDataLoaded={() => setIsCountryLoading(false)}
-            onGeojsonError={(msg) => {
+            onGeojsonError={(msg: string) => {
               setIsCountryLoading(false);
               setGeojsonError(msg);
             }}
@@ -75,6 +75,6 @@ function App() {
       </div>
     </div>
   );
-}
+};
 
 export default App;
