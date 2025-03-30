@@ -74,3 +74,14 @@ html, body, #root {
   font-size: 16px;
   color: #fff;
 }
+
+.mapboxgl-popup-content {
+  background: rgba(0, 0, 0, 0.5) !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.mapboxgl-popup-tip {
+  display: none !important;
+}
