@@ -90,7 +90,8 @@ const MapComponent = ({
 
     const loadADM2GeoJSON = async () => {
       try {
-        const url = `/outputs/geometries/countries/${countryCode}_adm2.geojson`;
+        // const url = `/outputs/geometries/countries/${countryCode}_adm2.geojson`;
+        const url = `https://huggingface.co/datasets/c1587s/adm2-geojson-dataset/resolve/main/${countryCode}_adm2.geojson`;
         console.log('Fetching ADM2 GeoJSON from:', url);
         const response = await fetch(url);
         if (!response.ok) {
@@ -220,7 +221,7 @@ const MapComponent = ({
 
     const loadImpactGeoJSON = async () => {
       try {
-        const url = `/outputs/geometries/countries/${countryCode}_ir.geojson`;
+        const url = `https://huggingface.co/datasets/c1587s/adm2-geojson-dataset/resolve/main/${countryCode}_ir.geojson`;
         console.log('Fetching Impact Regions GeoJSON from:', url);
         const response = await fetch(url);
         if (!response.ok) {
