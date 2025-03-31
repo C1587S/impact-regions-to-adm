@@ -16,6 +16,8 @@ const MapComponent = ({
   toggleCaseType,
   impactLayerVisible,
   toggleImpactLayer,
+  problematicLayerVisible,
+  toggleProblematicLayer, // provided in case you need to toggle from the map
   onDataLoaded,
   onGeojsonError,
 }) => {
@@ -24,12 +26,13 @@ const MapComponent = ({
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [caseCounts, setCaseCounts] = useState({});
   const [adm2Center, setAdm2Center] = useState(null);
+  const [problematicCount, setProblematicCount] = useState(0);
 
   // Helper: returns the corresponding color for an ADM2 case type.
   const getCaseColor = (caseType) => {
     switch (caseType) {
       case 'Case 1: IR = ADM2':
-        return '#2E8B57';
+        return '#88c0d0';
       case 'Case 2: IR covers multiple ADM2s':
         return '#FF8C00';
       case 'Case 3: ADM2 = multiple IRs':
@@ -44,7 +47,7 @@ const MapComponent = ({
     return [
       'match',
       ['get', 'case_type'],
-      'Case 1: IR = ADM2', '#2E8B57',
+      'Case 1: IR = ADM2', '#88c0d0',
       'Case 2: IR covers multiple ADM2s', '#FF8C00',
       'Case 3: ADM2 = multiple IRs', '#8B0000',
       '#CCCCCC',
@@ -92,7 +95,6 @@ const MapComponent = ({
 
     const loadADM2GeoJSON = async () => {
       try {
-        // Use Hugging Face URL for ADM2 data.
         const url = `https://huggingface.co/datasets/c1587s/adm2-geojson-dataset/resolve/main/${countryCode}_adm2.geojson`;
         console.log('Fetching ADM2 GeoJSON from:', url);
         const response = await fetch(url);
@@ -106,7 +108,6 @@ const MapComponent = ({
         console.log('ADM2 GeoJSON loaded:', data);
         if (onGeojsonError) onGeojsonError('');
 
-        // Compute counts for each ADM2 case type.
         const counts = data.features.reduce((acc, feature) => {
           const ct = feature.properties.case_type;
           acc[ct] = (acc[ct] || 0) + 1;
@@ -114,12 +115,10 @@ const MapComponent = ({
         }, {});
         setCaseCounts(counts);
 
-        // Compute centroid using Turf.js and save it.
         const centerFeature = centroid(data);
         const computedCenter = centerFeature.geometry.coordinates;
         setAdm2Center(computedCenter);
 
-        // Update or add the ADM2 source and layers.
         if (map.getSource('adm2-regions')) {
           map.getSource('adm2-regions').setData(data);
         } else {
@@ -146,17 +145,14 @@ const MapComponent = ({
           });
         }
 
-        // Build filter for ADM2 features.
         const activeTypes = Object.keys(activeCaseTypes).filter((key) => activeCaseTypes[key]);
         const filterExpression = activeTypes.length
           ? ['in', ['get', 'case_type'], ['literal', activeTypes]]
           : ['==', ['get', 'case_type'], ''];
         map.setFilter('adm2-fill', filterExpression);
 
-        // Fly-to effect.
         const targetZoom = (['USA', 'CHN', 'IND'].includes(countryCode)) ? 4 : 5;
         console.log('Computed ADM2 center:', computedCenter, 'Target zoom:', targetZoom);
-        // Use the "idle" event to trigger fly-to after rendering.
         map.once('idle', () => {
           console.log('Flying to ADM2 center...');
           map.flyTo({
@@ -169,7 +165,6 @@ const MapComponent = ({
           if (onDataLoaded) onDataLoaded();
         });
 
-        // Attach click handler for ADM2 features.
         const handleADM2Click = (e) => {
           if (e.features && e.features.length > 0) {
             const feature = e.features[0];
@@ -231,7 +226,6 @@ const MapComponent = ({
         const data = await response.json();
         console.log('Impact Regions GeoJSON loaded:', data);
 
-        // Update or add the Impact Regions source and layers.
         if (map.getSource('impact-regions')) {
           map.getSource('impact-regions').setData(data);
         } else {
@@ -256,7 +250,6 @@ const MapComponent = ({
               'line-width': 1,
             },
           });
-          // Add a hover layer for IR highlighting.
           map.addLayer({
             id: 'impact-hover',
             type: 'fill',
@@ -269,7 +262,6 @@ const MapComponent = ({
             filter: ['==', ['get', 'hierid'], null],
           });
         }
-        // Ensure IR layers are rendered beneath ADM2.
         if (map.getLayer('adm2-fill')) {
           map.moveLayer('impact-fill', 'adm2-fill');
           map.moveLayer('impact-outline', 'adm2-fill');
@@ -329,7 +321,7 @@ const MapComponent = ({
         console.log("Hovered Impact Region properties:", feature.properties);
         const impactId = feature.properties.hierid !== undefined ? feature.properties.hierid : null;
         map.setFilter('impact-hover', ['==', ['get', 'hierid'], impactId]);
-        const tooltipHTML = `<div style="background: rgba(0,0,0,0.5); padding: 5px; border-radius: 3px; border: none; color: #fff; font-size:12px;">
+        const tooltipHTML = `<div style="background: rgba(0,0,0,0.5); padding: 5px; border-radius: 3px; color: #fff; font-size:12px;">
              <strong>Impact Region</strong><br/>
              HierID: ${feature.properties.hierid || 'N/A'}<br/>
              GADM ID: ${feature.properties.gadmid || 'N/A'}<br/>
@@ -354,7 +346,116 @@ const MapComponent = ({
     };
   }, [impactLayerVisible]);
 
-  // Reset View button: triggered only when clicked.
+  // New: Load and manage Problematic Impact Regions layer.
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!countryCode) return;
+
+    if (!problematicLayerVisible) {
+      if (map.getLayer('problematic-ir-fill')) {
+        map.setLayoutProperty('problematic-ir-fill', 'visibility', 'none');
+        map.setLayoutProperty('problematic-ir-outline', 'visibility', 'none');
+        map.setLayoutProperty('problematic-ir-hover', 'visibility', 'none');
+      }
+      // Reset the count when layer is hidden.
+      setProblematicCount(0);
+      return;
+    }
+
+    const loadProblematicIR = async () => {
+      try {
+        const url = `https://huggingface.co/datasets/c1587s/adm2-geojson-dataset/resolve/main/ir_problematic/${countryCode}_ir_problematic.geojson`;
+        console.log('Fetching Problematic Impact Regions GeoJSON from:', url);
+        const response = await fetch(url);
+        if (!response.ok) {
+          console.error('Problematic IR GeoJSON not found for', countryCode);
+          return;
+        }
+        const data = await response.json();
+        console.log('Problematic IR GeoJSON loaded:', data);
+
+        // Update the count based on the number of features.
+        setProblematicCount(data.features.length);
+
+        if (map.getSource('problematic-ir')) {
+          map.getSource('problematic-ir').setData(data);
+        } else {
+          map.addSource('problematic-ir', { type: 'geojson', data });
+          map.addLayer({
+            id: 'problematic-ir-fill',
+            type: 'fill',
+            source: 'problematic-ir',
+            layout: { visibility: 'visible' },
+            paint: {
+              'fill-color': '#FF0000', // Distinct color for problematic IR
+              'fill-opacity': 0.5,
+            },
+          });
+          map.addLayer({
+            id: 'problematic-ir-outline',
+            type: 'line',
+            source: 'problematic-ir',
+            layout: { visibility: 'visible' },
+            paint: {
+              'line-color': '#000000',
+              'line-width': 2,
+            },
+          });
+          map.addLayer({
+            id: 'problematic-ir-hover',
+            type: 'fill',
+            source: 'problematic-ir',
+            layout: { visibility: 'visible' },
+            paint: {
+              'fill-color': 'yellow',
+              'fill-opacity': 0.7,
+            },
+            filter: ['==', ['get', 'id'], ''],
+          });
+
+          if (map.getLayer('adm2-fill')) {
+            map.moveLayer('problematic-ir-fill', 'adm2-fill');
+            map.moveLayer('problematic-ir-outline', 'adm2-fill');
+            map.moveLayer('problematic-ir-hover', 'adm2-fill');
+          }
+        }
+
+        let popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false });
+        const handleProbIRMouseMove = (e) => {
+          if (e.features && e.features.length > 0) {
+            const feature = e.features[0];
+            map.setFilter('problematic-ir-hover', ['==', ['get', 'id'], feature.properties.id || '']);
+            const tooltipHTML = `<div style="background: rgba(0,0,0,0.5); padding: 5px; border-radius: 3px; color: #fff; font-size:12px;">
+              <strong>Problematic IR</strong><br/>
+              ID: ${feature.properties.id || 'N/A'}<br/>
+              Additional info if available...
+            </div>`;
+            popup.setLngLat(e.lngLat).setHTML(tooltipHTML).addTo(map);
+          }
+        };
+        const handleProbIRMouseLeave = () => {
+          map.setFilter('problematic-ir-hover', ['==', ['get', 'id'], '']);
+          popup.remove();
+        };
+        map.on('mousemove', 'problematic-ir-fill', handleProbIRMouseMove);
+        map.on('mouseleave', 'problematic-ir-fill', handleProbIRMouseLeave);
+      } catch (error) {
+        console.error('Error loading problematic IR GeoJSON:', error);
+      }
+    };
+
+    loadProblematicIR();
+
+    return () => {
+      if (map.getLayer('problematic-ir-fill')) {
+        map.off('mousemove', 'problematic-ir-fill');
+        map.off('mouseleave', 'problematic-ir-fill');
+      }
+    };
+  }, [countryCode, problematicLayerVisible]);
+
+  // Reset View button.
   const resetView = () => {
     if (!mapRef.current || !adm2Center) return;
     const targetZoom = (['USA', 'CHN', 'IND'].includes(countryCode)) ? 4 : 5;
@@ -370,27 +471,28 @@ const MapComponent = ({
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
-      {/* Reset View Button */}
       {adm2Center && (
         <button 
-          onClick={resetView} 
-          style={{
+            onClick={resetView} 
+            style={{
             position: 'absolute',
-            top: '10px',
+            top: '100px',
             right: '10px',
-            padding: '8px 12px',
-            background: 'rgba(0,0,0,0.6)',
-            border: 'none',
+            padding: '8px',
+            background: 'transparent',
+            border: '1px solid white',
             borderRadius: '4px',
-            color: '#fff',
             cursor: 'pointer',
             zIndex: 2,
-          }}
+            }}
         >
-          Reset View
+            <img 
+            src="/reset.png" 
+            alt="Reset View" 
+            style={{ width: '13px' }}
+            />
         </button>
-      )}
-      {/* ADM2 Feature Details Panel */}
+        )}
       {selectedFeature && (
         <div className="feature-info">
           <button className="close-btn" onClick={() => setSelectedFeature(null)}>X</button>
@@ -413,6 +515,9 @@ const MapComponent = ({
         caseCounts={caseCounts}
         impactLayerVisible={impactLayerVisible}
         toggleImpactLayer={toggleImpactLayer}
+        problematicLayerVisible={problematicLayerVisible}
+        toggleProblematicLayer={toggleProblematicLayer}
+        problematicCount={problematicCount}
       />
     </div>
   );
