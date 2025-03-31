@@ -1,6 +1,6 @@
 // src/components/Legend.jsx
 import React from 'react';
-import './Legend.css';
+import './Legend.css'; 
 
 const Legend = ({
   activeCaseTypes,
@@ -10,6 +10,9 @@ const Legend = ({
   caseCounts,
   impactLayerVisible,
   toggleImpactLayer,
+  problematicLayerVisible,
+  toggleProblematicLayer,
+  problematicCount,
 }) => {
   return (
     <div className="legend">
@@ -34,6 +37,16 @@ const Legend = ({
           Show Impact Regions
         </label>
       </div>
+      <div className="layer-toggle">
+        <label>
+          <input
+            type="checkbox"
+            checked={problematicLayerVisible}
+            onChange={toggleProblematicLayer}
+          />
+          Show Problematic Impact Regions {problematicCount !== undefined ? `(${problematicCount})` : ''}
+        </label>
+      </div>
       <div className="case-filters">
         {Object.keys(activeCaseTypes).map((caseType) => (
           <label key={caseType} className="legend-item">
@@ -47,7 +60,7 @@ const Legend = ({
               style={{
                 backgroundColor:
                   caseType === 'Case 1: IR = ADM2'
-                    ? '#2E8B57'
+                    ? '#88c0d0'
                     : caseType === 'Case 2: IR covers multiple ADM2s'
                     ? '#FF8C00'
                     : caseType === 'Case 3: ADM2 = multiple IRs'
