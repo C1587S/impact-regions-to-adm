@@ -9,20 +9,41 @@ const App: React.FC = () => {
   const [pendingCountry, setPendingCountry] = useState<string>('');
   const [confirmedCountry, setConfirmedCountry] = useState<string>('');
   const [isCountryLoading, setIsCountryLoading] = useState<boolean>(false);
-  const [adm2LayerVisible, setAdm2LayerVisible] = useState<boolean>(true);
-  const [impactLayerVisible, setImpactLayerVisible] = useState<boolean>(true);
-  const [problematicLayerVisible, setProblematicLayerVisible] = useState<boolean>(false);
+  const [adm2LayerVisible, setAdm2LayerVisible] = useState<boolean>(true); // ADM2 visible by default
+  const [impactLayerVisible, setImpactLayerVisible] = useState<boolean>(false); // IR hidden by default
   const [activeCaseTypes, setActiveCaseTypes] = useState<{ [key: string]: boolean }>({
     'Case 1: IR = ADM2': true,
+    'Case 1': true,
+    'Case 2a: IR ⊃ ADM2 (1 ADM1)': true,
     'Case 2: IR covers multiple ADM2s': true,
+    'Case 2b: IR ⊃ ADM2 (multi ADM1)': true,
+    'Case 3a: ADM2 ⊃ IR (1 ADM1)': true,
     'Case 3: ADM2 = multiple IRs': true,
+    'Case 3b: ADM2 ⊃ IR (multi ADM1)': true,
+    'Case 4: ADM2 with no IR assigned': true,
   });
+  
   const [geojsonError, setGeojsonError] = useState<string>('');
 
   const handleCountrySubmit = () => {
     setIsCountryLoading(true);
     setConfirmedCountry(pendingCountry);
     setGeojsonError('');
+    // Reset active case types to default for a new country.
+const [activeCaseTypes, setActiveCaseTypes] = useState<{ [key: string]: boolean }>({
+  'Case 1: IR = ADM2': true,
+  'Case 1': true,
+  'Case 2a: IR ⊃ ADM2 (1 ADM1)': true,
+  'Case 2: IR covers multiple ADM2s': true,
+  'Case 2b: IR ⊃ ADM2 (multi ADM1)': true,
+  'Case 3a: ADM2 ⊃ IR (1 ADM1)': true,
+  'Case 3: ADM2 = multiple IRs': true,
+  'Case 3b: ADM2 ⊃ IR (multi ADM1)': true,
+  'Case 4: ADM2 with no IR assigned': true,
+});
+
+    // Reset Impact Regions to hidden.
+    setImpactLayerVisible(false);
   };
 
   const toggleAdm2Layer = () => {
@@ -31,10 +52,6 @@ const App: React.FC = () => {
 
   const toggleImpactLayer = () => {
     setImpactLayerVisible((prev) => !prev);
-  };
-
-  const toggleProblematicLayer = () => {
-    setProblematicLayerVisible((prev) => !prev);
   };
 
   const toggleCaseType = (caseType: string) => {
@@ -70,8 +87,6 @@ const App: React.FC = () => {
             toggleCaseType={toggleCaseType}
             impactLayerVisible={impactLayerVisible}
             toggleImpactLayer={toggleImpactLayer}
-            problematicLayerVisible={problematicLayerVisible}
-            toggleProblematicLayer={toggleProblematicLayer}
             onDataLoaded={() => setIsCountryLoading(false)}
             onGeojsonError={(msg: string) => {
               setIsCountryLoading(false);

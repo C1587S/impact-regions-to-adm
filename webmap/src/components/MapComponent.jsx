@@ -26,19 +26,33 @@ const MapComponent = ({
   const [caseCounts, setCaseCounts] = useState({});
   const [adm2Center, setAdm2Center] = useState(null);
 
+  // Reset data when a new country is selected.
+  useEffect(() => {
+    setSelectedFeature(null);
+    setCaseCounts({});
+    setAdm2Center(null);
+  }, [countryCode]);
+
   // Helper: returns the corresponding color for a given case type.
   const getCaseColor = (caseType) => {
-    switch (caseType) {
-      case 'Case 1: IR = ADM2':
+    switch (true) {
+      case caseType === 'Case 1: IR = ADM2' || caseType === 'Case 1':
         return colors.case1;
-      case 'Case 2: IR covers multiple ADM2s':
-        return colors.case2;
-      case 'Case 3: ADM2 = multiple IRs':
-        return colors.case3;
+      case caseType === 'Case 2a: IR ⊃ ADM2 (1 ADM1)' || caseType === 'Case 2: IR covers multiple ADM2s':
+        return colors.case2a;
+      case caseType === 'Case 2b: IR ⊃ ADM2 (multi ADM1)':
+        return colors.case2b;
+      case caseType === 'Case 3a: ADM2 ⊃ IR (1 ADM1)' || caseType === 'Case 3: ADM2 = multiple IRs':
+        return colors.case3a;
+      case caseType === 'Case 3b: ADM2 ⊃ IR (multi ADM1)':
+        return colors.case3b;
+      case caseType === 'Case 4: ADM2 with no IR assigned':
+        return colors.case4;
       default:
         return colors.defaultCase;
     }
   };
+  
 
   // Expression for ADM2 fill color.
   const getFillColorExpression = () => {
@@ -46,12 +60,20 @@ const MapComponent = ({
       'match',
       ['get', 'case_type'],
       'Case 1: IR = ADM2', colors.case1,
-      'Case 2: IR covers multiple ADM2s', colors.case2,
-      'Case 3: ADM2 = multiple IRs', colors.case3,
+      'Case 1', colors.case1,
+      'Case 2a: IR ⊃ ADM2 (1 ADM1)', colors.case2a,
+      'Case 2: IR covers multiple ADM2s', colors.case2a,
+      'Case 2b: IR ⊃ ADM2 (multi ADM1)', colors.case2b,
+      'Case 3a: ADM2 ⊃ IR (1 ADM1)', colors.case3a,
+      'Case 3: ADM2 = multiple IRs', colors.case3a,
+      'Case 3b: ADM2 ⊃ IR (multi ADM1)', colors.case3b,
+      'Case 4: ADM2 with no IR assigned', colors.case4,
       colors.defaultCase,
     ];
   };
-
+  
+  
+  // Initialize the map.
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (!mapRef.current) {
@@ -63,11 +85,13 @@ const MapComponent = ({
         projection: 'globe',
       });
   
-      mapRef.current.addControl(new mapboxgl.NavigationControl());      
+      mapRef.current.addControl(new mapboxgl.NavigationControl());
       mapRef.current.on('style.load', () => {
+        // Hide unwanted admin layers – keep only country borders.
         const layersToHide = [
-         'admin-1-boundary',
-          'admin-0-boundary-disputed', 'admin-0-boundary-bg'
+          'admin-1-boundary',
+          'admin-0-boundary-disputed',
+          'admin-0-boundary-bg'
         ];
         layersToHide.forEach(layerId => {
           if (mapRef.current.getLayer(layerId)) {
@@ -75,20 +99,29 @@ const MapComponent = ({
           }
         });
       });
-      
     }
   }, []);
+
+  // When ADM2 layer is turned off, disable all case types.
+  useEffect(() => {
+    if (!layerVisible) {
+      Object.keys(activeCaseTypes).forEach(caseType => {
+        if (activeCaseTypes[caseType]) {
+          toggleCaseType(caseType);
+        }
+      });
+    }
+  }, [layerVisible, activeCaseTypes, toggleCaseType]);
 
   // Load ADM2 GeoJSON and set up ADM2 layers.
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
     if (!countryCode) {
-      console.log('No country selected.');
+    //   console.log('No country selected.');
       return;
     }
     console.log('ADM2 - Country selected:', countryCode);
-
     const loadADM2GeoJSON = async () => {
       try {
         const url = `https://huggingface.co/datasets/c1587s/adm2-geojson-dataset/resolve/main/${countryCode}_adm2.geojson`;
@@ -110,6 +143,7 @@ const MapComponent = ({
           return acc;
         }, {});
         setCaseCounts(counts);
+        console.log('Case types found in ADM2 GeoJSON:', Object.entries(counts));
 
         const centerFeature = centroid(data);
         const computedCenter = centerFeature.geometry.coordinates;
@@ -126,7 +160,7 @@ const MapComponent = ({
             layout: { visibility: layerVisible ? 'visible' : 'none' },
             paint: {
               'fill-color': getFillColorExpression(),
-              'fill-opacity': 0.7,
+              'fill-opacity': 1, // full opacity
             },
           });
           map.addLayer({
@@ -148,9 +182,9 @@ const MapComponent = ({
         map.setFilter('adm2-fill', filterExpression);
 
         const targetZoom = (['USA', 'CHN', 'IND'].includes(countryCode)) ? 4 : 5;
-        console.log('Computed ADM2 center:', computedCenter, 'Target zoom:', targetZoom);
+        // console.log('Computed ADM2 center:', computedCenter, 'Target zoom:', targetZoom);
         map.once('idle', () => {
-          console.log('Flying to ADM2 center...');
+        //   console.log('Flying to ADM2 center...');
           map.flyTo({
             center: computedCenter,
             zoom: targetZoom,
@@ -185,7 +219,6 @@ const MapComponent = ({
           onGeojsonError('GeoJSON not found for the selected country.');
       }
     };
-
     loadADM2GeoJSON();
     return () => {
       if (map && map.getLayer('adm2-fill')) {
@@ -199,75 +232,61 @@ const MapComponent = ({
     if (!mapRef.current) return;
     const map = mapRef.current;
     if (!countryCode) {
-      console.log('No country selected for Impact Regions.');
+    //   console.log('No country selected for Impact Regions.');
       return;
     }
     if (!impactLayerVisible) {
       if (map.getLayer('impact-fill')) map.setLayoutProperty('impact-fill', 'visibility', 'none');
       if (map.getLayer('impact-outline')) map.setLayoutProperty('impact-outline', 'visibility', 'none');
-      if (map.getLayer('impact-hover')) map.setLayoutProperty('impact-hover', 'visibility', 'none');
       return;
     }
-    console.log('Loading Impact Regions for:', countryCode);
-
+    // console.log('Loading Impact Regions for:', countryCode);
     const loadImpactGeoJSON = async () => {
       try {
         const url = `https://huggingface.co/datasets/c1587s/adm2-geojson-dataset/resolve/main/${countryCode}_ir.geojson`;
-        console.log('Fetching Impact Regions GeoJSON from:', url);
+        // console.log('Fetching Impact Regions GeoJSON from:', url);
         const response = await fetch(url);
         if (!response.ok) {
           console.error('Error fetching Impact Regions GeoJSON:', response.status);
           return;
         }
         const data = await response.json();
-        console.log('Impact Regions GeoJSON loaded:', data);
+        // console.log('Impact Regions GeoJSON loaded:', data);
 
         if (map.getSource('impact-regions')) {
           map.getSource('impact-regions').setData(data);
         } else {
           map.addSource('impact-regions', { type: 'geojson', data });
+          // Add an invisible fill layer for hover detection.
           map.addLayer({
             id: 'impact-fill',
             type: 'fill',
             source: 'impact-regions',
-            layout: { visibility: 'visible' },
+            layout: { visibility: impactLayerVisible ? 'visible' : 'none' },
             paint: {
-              'fill-color': colors.impactFill,
-              'fill-opacity': 0.5,
+              'fill-opacity': 0, // invisible but captures events
             },
           });
+          // Add an outline layer with the desired styling.
           map.addLayer({
             id: 'impact-outline',
             type: 'line',
             source: 'impact-regions',
-            layout: { visibility: 'visible' },
+            layout: { visibility: impactLayerVisible ? 'visible' : 'none' },
             paint: {
-              'line-color': colors.impactOutline,
-              'line-width': 1,
+              'line-color': colors.impactFill, // cyan
+              'line-width': 2,
+              'line-dasharray': [1],
             },
           });
-          map.addLayer({
-            id: 'impact-hover',
-            type: 'fill',
-            source: 'impact-regions',
-            layout: { visibility: 'visible' },
-            paint: {
-              'fill-color': colors.impactHover,
-              'fill-opacity': 0.7,
-            },
-            filter: ['==', ['get', 'hierid'], null],
-          });
         }
-        if (map.getLayer('adm2-fill')) {
-          map.moveLayer('impact-fill', 'adm2-fill');
-          map.moveLayer('impact-outline', 'adm2-fill');
-          map.moveLayer('impact-hover', 'adm2-fill');
-        }
+        // Move the Impact Regions layers above ADM2.
+        map.moveLayer('impact-fill');
+        map.moveLayer('impact-outline');
       } catch (error) {
         console.error('Error loading Impact Regions GeoJSON:', error);
       }
     };
-
     loadImpactGeoJSON();
   }, [countryCode, impactLayerVisible]);
 
@@ -288,7 +307,6 @@ const MapComponent = ({
       const vis = impactLayerVisible ? 'visible' : 'none';
       if (map.getLayer('impact-fill')) map.setLayoutProperty('impact-fill', 'visibility', vis);
       if (map.getLayer('impact-outline')) map.setLayoutProperty('impact-outline', 'visibility', vis);
-      if (map.getLayer('impact-hover')) map.setLayoutProperty('impact-hover', 'visibility', vis);
     }
   }, [impactLayerVisible]);
 
@@ -304,19 +322,15 @@ const MapComponent = ({
     }
   }, [activeCaseTypes]);
 
-  // Impact Regions hover behavior.
+  // Impact Regions hover behavior – attach to the invisible fill layer.
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
     if (!impactLayerVisible) return;
-
     let popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false });
     const handleIRMouseMove = (e) => {
       if (e.features && e.features.length > 0) {
         const feature = e.features[0];
-        console.log("Hovered Impact Region properties:", feature.properties);
-        const impactId = feature.properties.hierid !== undefined ? feature.properties.hierid : null;
-        map.setFilter('impact-hover', ['==', ['get', 'hierid'], impactId]);
         const tooltipHTML = `<div style="background: rgba(0,0,0,0.5); padding: 5px; border-radius: 3px; color: #fff; font-size:12px;">
              <strong>Impact Region</strong><br/>
              HierID: ${feature.properties.hierid || 'N/A'}<br/>
@@ -326,15 +340,11 @@ const MapComponent = ({
         popup.setLngLat(e.lngLat).setHTML(tooltipHTML).addTo(map);
       }
     };
-
     const handleIRMouseLeave = () => {
-      map.setFilter('impact-hover', ['==', ['get', 'hierid'], null]);
       popup.remove();
     };
-
     map.on('mousemove', 'impact-fill', handleIRMouseMove);
     map.on('mouseleave', 'impact-fill', handleIRMouseLeave);
-
     return () => {
       map.off('mousemove', 'impact-fill', handleIRMouseMove);
       map.off('mouseleave', 'impact-fill', handleIRMouseLeave);

@@ -6,7 +6,7 @@
     background: rgba(50, 50, 50, 0.9);
     padding: 10px;
     border-radius: 6px;
-    font-size: 14px;
+    font-size: 10px;
     color: #fff;
     box-shadow: 0 2px 4px rgba(0,0,0,0.4);
     max-width: 250px;
@@ -14,7 +14,7 @@
   
   .legend h4 {
     margin: 0 0 8px;
-    font-size: 16px;
+    font-size: 14px;
     border-bottom: 1px solid #777;
     padding-bottom: 4px;
   }
