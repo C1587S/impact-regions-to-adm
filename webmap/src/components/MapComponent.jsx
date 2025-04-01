@@ -4,6 +4,7 @@ import mapboxgl from 'mapbox-gl';
 import Legend from './Legend';
 import centroid from '@turf/centroid';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import colors from '../layerColors';
 
 // Use your Mapbox token from environment variables.
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
@@ -16,8 +17,6 @@ const MapComponent = ({
   toggleCaseType,
   impactLayerVisible,
   toggleImpactLayer,
-  problematicLayerVisible,
-  toggleProblematicLayer, // provided in case you need to toggle from the map
   onDataLoaded,
   onGeojsonError,
 }) => {
@@ -26,19 +25,18 @@ const MapComponent = ({
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [caseCounts, setCaseCounts] = useState({});
   const [adm2Center, setAdm2Center] = useState(null);
-  const [problematicCount, setProblematicCount] = useState(0);
 
-  // Helper: returns the corresponding color for an ADM2 case type.
+  // Helper: returns the corresponding color for a given case type.
   const getCaseColor = (caseType) => {
     switch (caseType) {
       case 'Case 1: IR = ADM2':
-        return '#88c0d0';
+        return colors.case1;
       case 'Case 2: IR covers multiple ADM2s':
-        return '#FF8C00';
+        return colors.case2;
       case 'Case 3: ADM2 = multiple IRs':
-        return '#8B0000';
+        return colors.case3;
       default:
-        return '#CCCCCC';
+        return colors.defaultCase;
     }
   };
 
@@ -47,39 +45,37 @@ const MapComponent = ({
     return [
       'match',
       ['get', 'case_type'],
-      'Case 1: IR = ADM2', '#88c0d0',
-      'Case 2: IR covers multiple ADM2s', '#FF8C00',
-      'Case 3: ADM2 = multiple IRs', '#8B0000',
-      '#CCCCCC',
+      'Case 1: IR = ADM2', colors.case1,
+      'Case 2: IR covers multiple ADM2s', colors.case2,
+      'Case 3: ADM2 = multiple IRs', colors.case3,
+      colors.defaultCase,
     ];
   };
 
-  // Initialize the map.
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (!mapRef.current) {
       mapRef.current = new mapboxgl.Map({
         container: mapContainerRef.current,
-        style: 'mapbox://styles/mapbox/dark-v10',
+        style: 'mapbox://styles/mapbox/light-v11',
         center: [0, 0],
         zoom: 1.5,
         projection: 'globe',
       });
-      mapRef.current.addControl(new mapboxgl.NavigationControl());
+  
+      mapRef.current.addControl(new mapboxgl.NavigationControl());      
       mapRef.current.on('style.load', () => {
-        const map = mapRef.current;
         const layersToHide = [
-          'admin-0-boundary',
-          'admin-1-boundary',
-          'admin-0-boundary-bg',
-          'admin-1-boundary-bg',
+         'admin-1-boundary',
+          'admin-0-boundary-disputed', 'admin-0-boundary-bg'
         ];
-        layersToHide.forEach((layerId) => {
-          if (map.getLayer(layerId)) {
-            map.setLayoutProperty(layerId, 'visibility', 'none');
+        layersToHide.forEach(layerId => {
+          if (mapRef.current.getLayer(layerId)) {
+            mapRef.current.setLayoutProperty(layerId, 'visibility', 'none');
           }
         });
       });
+      
     }
   }, []);
 
@@ -139,7 +135,7 @@ const MapComponent = ({
             source: 'adm2-regions',
             layout: { visibility: layerVisible ? 'visible' : 'none' },
             paint: {
-              'line-color': '#000000',
+              'line-color': colors.adm2Outline,
               'line-width': 2,
             },
           });
@@ -236,7 +232,7 @@ const MapComponent = ({
             source: 'impact-regions',
             layout: { visibility: 'visible' },
             paint: {
-              'fill-color': '#9C27B0',
+              'fill-color': colors.impactFill,
               'fill-opacity': 0.5,
             },
           });
@@ -246,7 +242,7 @@ const MapComponent = ({
             source: 'impact-regions',
             layout: { visibility: 'visible' },
             paint: {
-              'line-color': '#000000',
+              'line-color': colors.impactOutline,
               'line-width': 1,
             },
           });
@@ -256,7 +252,7 @@ const MapComponent = ({
             source: 'impact-regions',
             layout: { visibility: 'visible' },
             paint: {
-              'fill-color': 'cyan',
+              'fill-color': colors.impactHover,
               'fill-opacity': 0.7,
             },
             filter: ['==', ['get', 'hierid'], null],
@@ -285,7 +281,7 @@ const MapComponent = ({
     }
   }, [layerVisible]);
 
-  // Update IR layer visibility.
+  // Update Impact Regions layer visibility.
   useEffect(() => {
     const map = mapRef.current;
     if (map) {
@@ -346,115 +342,6 @@ const MapComponent = ({
     };
   }, [impactLayerVisible]);
 
-  // New: Load and manage Problematic Impact Regions layer.
-  useEffect(() => {
-    if (!mapRef.current) return;
-    const map = mapRef.current;
-    if (!countryCode) return;
-
-    if (!problematicLayerVisible) {
-      if (map.getLayer('problematic-ir-fill')) {
-        map.setLayoutProperty('problematic-ir-fill', 'visibility', 'none');
-        map.setLayoutProperty('problematic-ir-outline', 'visibility', 'none');
-        map.setLayoutProperty('problematic-ir-hover', 'visibility', 'none');
-      }
-      // Reset the count when layer is hidden.
-      setProblematicCount(0);
-      return;
-    }
-
-    const loadProblematicIR = async () => {
-      try {
-        const url = `https://huggingface.co/datasets/c1587s/adm2-geojson-dataset/resolve/main/ir_problematic/${countryCode}_ir_problematic.geojson`;
-        console.log('Fetching Problematic Impact Regions GeoJSON from:', url);
-        const response = await fetch(url);
-        if (!response.ok) {
-          console.error('Problematic IR GeoJSON not found for', countryCode);
-          return;
-        }
-        const data = await response.json();
-        console.log('Problematic IR GeoJSON loaded:', data);
-
-        // Update the count based on the number of features.
-        setProblematicCount(data.features.length);
-
-        if (map.getSource('problematic-ir')) {
-          map.getSource('problematic-ir').setData(data);
-        } else {
-          map.addSource('problematic-ir', { type: 'geojson', data });
-          map.addLayer({
-            id: 'problematic-ir-fill',
-            type: 'fill',
-            source: 'problematic-ir',
-            layout: { visibility: 'visible' },
-            paint: {
-              'fill-color': '#FF0000', // Distinct color for problematic IR
-              'fill-opacity': 0.5,
-            },
-          });
-          map.addLayer({
-            id: 'problematic-ir-outline',
-            type: 'line',
-            source: 'problematic-ir',
-            layout: { visibility: 'visible' },
-            paint: {
-              'line-color': '#000000',
-              'line-width': 2,
-            },
-          });
-          map.addLayer({
-            id: 'problematic-ir-hover',
-            type: 'fill',
-            source: 'problematic-ir',
-            layout: { visibility: 'visible' },
-            paint: {
-              'fill-color': 'yellow',
-              'fill-opacity': 0.7,
-            },
-            filter: ['==', ['get', 'id'], ''],
-          });
-
-          if (map.getLayer('adm2-fill')) {
-            map.moveLayer('problematic-ir-fill', 'adm2-fill');
-            map.moveLayer('problematic-ir-outline', 'adm2-fill');
-            map.moveLayer('problematic-ir-hover', 'adm2-fill');
-          }
-        }
-
-        let popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false });
-        const handleProbIRMouseMove = (e) => {
-          if (e.features && e.features.length > 0) {
-            const feature = e.features[0];
-            map.setFilter('problematic-ir-hover', ['==', ['get', 'id'], feature.properties.id || '']);
-            const tooltipHTML = `<div style="background: rgba(0,0,0,0.5); padding: 5px; border-radius: 3px; color: #fff; font-size:12px;">
-              <strong>Problematic IR</strong><br/>
-              ID: ${feature.properties.id || 'N/A'}<br/>
-              Additional info if available...
-            </div>`;
-            popup.setLngLat(e.lngLat).setHTML(tooltipHTML).addTo(map);
-          }
-        };
-        const handleProbIRMouseLeave = () => {
-          map.setFilter('problematic-ir-hover', ['==', ['get', 'id'], '']);
-          popup.remove();
-        };
-        map.on('mousemove', 'problematic-ir-fill', handleProbIRMouseMove);
-        map.on('mouseleave', 'problematic-ir-fill', handleProbIRMouseLeave);
-      } catch (error) {
-        console.error('Error loading problematic IR GeoJSON:', error);
-      }
-    };
-
-    loadProblematicIR();
-
-    return () => {
-      if (map.getLayer('problematic-ir-fill')) {
-        map.off('mousemove', 'problematic-ir-fill');
-        map.off('mouseleave', 'problematic-ir-fill');
-      }
-    };
-  }, [countryCode, problematicLayerVisible]);
-
   // Reset View button.
   const resetView = () => {
     if (!mapRef.current || !adm2Center) return;
@@ -469,30 +356,30 @@ const MapComponent = ({
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: '#fff' }}>
       <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
       {adm2Center && (
         <button 
-            onClick={resetView} 
-            style={{
+          onClick={resetView} 
+          style={{
             position: 'absolute',
             top: '100px',
             right: '10px',
             padding: '8px',
             background: 'transparent',
-            border: '1px solid white',
+            border: '1px solid grey',
             borderRadius: '4px',
             cursor: 'pointer',
             zIndex: 2,
-            }}
+          }}
         >
-            <img 
-            src="/reset.png" 
+          <img 
+            src="/reset_black.png" 
             alt="Reset View" 
             style={{ width: '13px' }}
-            />
+          />
         </button>
-        )}
+      )}
       {selectedFeature && (
         <div className="feature-info">
           <button className="close-btn" onClick={() => setSelectedFeature(null)}>X</button>
@@ -515,9 +402,6 @@ const MapComponent = ({
         caseCounts={caseCounts}
         impactLayerVisible={impactLayerVisible}
         toggleImpactLayer={toggleImpactLayer}
-        problematicLayerVisible={problematicLayerVisible}
-        toggleProblematicLayer={toggleProblematicLayer}
-        problematicCount={problematicCount}
       />
     </div>
   );
