@@ -13,12 +13,15 @@ const App: React.FC = () => {
   const [impactLayerVisible, setImpactLayerVisible] = useState<boolean>(false); // IR hidden by default
   const [activeCaseTypes, setActiveCaseTypes] = useState<{ [key: string]: boolean }>({
     'Case 1: IR = ADM2': true,
+    'Case 1': true,
     'Case 2a: IR ⊃ ADM2 (1 ADM1)': true,
+    'Case 2: IR covers multiple ADM2s': true,
     'Case 2b: IR ⊃ ADM2 (multi ADM1)': true,
     'Case 3a: ADM2 ⊃ IR (1 ADM1)': true,
+    'Case 3: ADM2 = multiple IRs': true,
     'Case 3b: ADM2 ⊃ IR (multi ADM1)': true,
     'Case 4: ADM2 with no IR assigned': true,
-  });  
+  });
   
   const [geojsonError, setGeojsonError] = useState<string>('');
 
