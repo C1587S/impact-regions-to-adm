@@ -38,11 +38,11 @@ const MapComponent = ({
     switch (true) {
       case caseType === 'Case 1: IR = ADM2' || caseType === 'Case 1':
         return colors.case1;
-      case caseType === 'Case 2a: IR ⊃ ADM2 (1 ADM1)' || caseType === 'Case 2: IR covers multiple ADM2s':
+      case caseType === 'Case 2a: IR ⊃ ADM2 (1 ADM1)' || caseType === 'Case 2: ADM2 = multiple IRs':
         return colors.case2a;
       case caseType === 'Case 2b: IR ⊃ ADM2 (multi ADM1)':
         return colors.case2b;
-      case caseType === 'Case 3a: ADM2 ⊃ IR (1 ADM1)' || caseType === 'Case 3: ADM2 = multiple IRs':
+      case caseType === 'Case 3a: ADM2 ⊃ IR (1 ADM1)' || caseType === 'Case 3: IR covers multiple ADM2s':
         return colors.case3a;
       case caseType === 'Case 3b: ADM2 ⊃ IR (multi ADM1)':
         return colors.case3b;

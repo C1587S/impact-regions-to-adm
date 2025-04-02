@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Libre+Franklin:ital,wght@0,100;0,400;0,700;1,100;1,400;1,700&family=Fira+Code&display=swap');
+
+/* Base container for the document */
+.doc-container {
+  background-color: #f9f6f2;
+  padding: 4rem 10vw;
+  font-family: 'EB Garamond', serif;
+  color: #1c1c1c;
+}
+
+/* Document title */
+.doc-title {
+  font-family: 'Libre Franklin', sans-serif;
+  font-weight: 400;
+  font-size: 36px;
+  margin-bottom: 2rem;
+}
+
+/* Section structure */
+.doc-section {
+  margin-bottom: 4rem;
+}
+
+.doc-section h2 {
+  font-family: 'Libre Franklin', sans-serif;
+  font-size: 28px;
+  font-weight: 400;
+  opacity: 0.75;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.doc-section h3 {
+  font-family: 'Libre Franklin', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  margin-top: 1rem;
+}
+
+/* Paragraphs and list items */
+p, li {
+  font-family: 'EB Garamond', serif;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+/* Inline formulas */
+.formula {
+  font-family: 'Fira Code', monospace;
+  font-size: 16px;
+  background: #eee;
+  padding: 0.5rem 1rem;
+  display: inline-block;
+  margin: 1rem 0;
+  border-radius: 4px;
+}
+
+/* Layout for illustrated cases */
+.doc-case {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 2rem;
+  margin-bottom: 4rem;
+}
+
+.doc-text {
+  width: 60%;
+}
+
+/* Images */
+.doc-img {
+  max-width: 100%;
+  height: auto;
+  border: 2px solid #8b8a8a;
+  border-radius: 12px;
+  background-color: #f8f8f8;
+  padding: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.doc-img.left {
+  width: 40%;
+  margin-right: 2rem;
+}
+
+.doc-img.right {
+  width: 40%;
+  margin-left: 2rem;
+}
+
+/* Figures with caption */
+.doc-figure {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fafafa;
+  padding: 0.75rem;
+  margin: 1rem 0;
+  display: inline-block;
+  max-width: 45%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.doc-figure.left {
+  float: left;
+  margin-right: 1.5rem;
+}
+
+.doc-figure.right {
+  float: right;
+  margin-left: 1.5rem;
+}
+
+.img-caption {
+  font-size: 0.85rem;
+  color: #9f9c9c;
+  text-align: center;
+  margin-top: 0.5rem;
+}
